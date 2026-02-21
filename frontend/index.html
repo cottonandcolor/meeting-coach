@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Coach - AI Meeting Co-pilot</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Error Banner -->
+    <div id="error-display"></div>
+
+    <!-- Header -->
+    <header class="app-header">
+        <h1>
+            <div class="logo-icon"></div>
+            Meeting Coach
+        </h1>
+        <span style="color: var(--text-secondary); font-size: 13px;">Powered by Gemini Live API</span>
+    </header>
+
+    <!-- ===== SETUP VIEW ===== -->
+    <div id="setup-view" class="view active">
+        <div class="setup-card">
+            <h2>New Meeting Session</h2>
+            <p class="subtitle">Configure your meeting and let your AI coach listen in.</p>
+
+            <div class="form-group">
+                <label for="user-name">Your Name</label>
+                <input type="text" id="user-name" placeholder="e.g. Preeti" value="">
+            </div>
+
+            <div class="form-group">
+                <label for="meeting-duration">Scheduled Duration (minutes)</label>
+                <input type="number" id="meeting-duration" value="30" min="5" max="180">
+            </div>
+
+            <div class="form-group">
+                <label>Agenda Items (optional)</label>
+                <div class="agenda-input-row">
+                    <input type="text" id="agenda-input" placeholder="Add an agenda item...">
+                    <button id="add-agenda-btn" class="btn btn-secondary btn-sm">Add</button>
+                </div>
+                <ul id="agenda-list"></ul>
+            </div>
+
+            <button id="start-meeting-btn" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 8px;">
+                Start Meeting
+            </button>
+        </div>
+    </div>
+
+    <!-- ===== ACTIVE MEETING VIEW ===== -->
+    <div id="active-meeting-view" class="view">
+        <div class="meeting-layout">
+            <!-- Left: Main meeting area -->
+            <div class="meeting-main">
+                <!-- Info bar -->
+                <div class="meeting-info-bar">
+                    <span class="meeting-name" id="meeting-name-display">Meeting</span>
+                    <span id="meeting-timer">00:00 / 30:00</span>
+                </div>
+
+                <!-- Controls -->
+                <div class="meeting-controls">
+                    <button id="toggle-mic-btn" class="btn btn-secondary">Unmute Mic</button>
+                    <button id="toggle-screen-btn" class="btn btn-secondary">Share Screen</button>
+                    <div style="flex:1"></div>
+                    <button id="end-meeting-btn" class="btn btn-danger">End Meeting</button>
+                </div>
+
+                <!-- Status -->
+                <div class="meeting-status">
+                    <h3>Live Status</h3>
+                    <div class="status-item">
+                        <span class="label">Current Topic</span>
+                        <span class="value" id="current-topic">Waiting for discussion...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Action Items</span>
+                        <span class="value"><span id="action-items-count">0</span> captured</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Nudges Given</span>
+                        <span class="value"><span id="nudge-count">0</span></span>
+                    </div>
+                </div>
+
+                <!-- Agenda -->
+                <div class="agenda-display">
+                    <h3>Agenda</h3>
+                    <ul id="meeting-agenda-display">
+                        <li class="empty-state">No agenda set</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right: Nudge sidebar -->
+            <div class="nudge-sidebar">
+                <div class="nudge-sidebar-header">
+                    <h3>Coach Nudges</h3>
+                    <span class="nudge-badge" id="nudge-count-badge">0</span>
+                </div>
+                <div id="nudge-container"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== SUMMARY VIEW ===== -->
+    <div id="summary-view" class="view">
+        <div id="summary-container"></div>
+        <div style="text-align: center; margin-top: 24px;">
+            <button id="new-meeting-btn" class="btn btn-primary">Start New Meeting</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/static/js/audio-capture.js"></script>
+    <script src="/static/js/audio-player.js"></script>
+    <script src="/static/js/screen-capture.js"></script>
+    <script src="/static/js/nudge-display.js"></script>
+    <script src="/static/js/meeting-timer.js"></script>
+    <script src="/static/js/summary-view.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
