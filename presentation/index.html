@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Coach - Gemini Live Agent Challenge</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg: #0a0b10;
+            --bg2: #12141d;
+            --card: #1a1d2b;
+            --text: #e8eaed;
+            --muted: #8b92a5;
+            --blue: #4a9eff;
+            --purple: #a855f7;
+            --green: #34d399;
+            --yellow: #fbbf24;
+            --red: #f87171;
+            --gradient: linear-gradient(135deg, #4a9eff, #a855f7);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* Slide container */
+        .deck {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .slide {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 60px 80px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .slide.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            bottom: 24px;
+            right: 32px;
+            display: flex;
+            gap: 12px;
+            z-index: 100;
+        }
+
+        .nav button {
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+
+        .nav button:hover { background: #252838; }
+
+        .slide-counter {
+            position: fixed;
+            bottom: 28px;
+            left: 32px;
+            font-size: 13px;
+            color: var(--muted);
+            z-index: 100;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Typography */
+        h1 { font-size: 56px; font-weight: 800; line-height: 1.1; }
+        h2 { font-size: 42px; font-weight: 700; line-height: 1.2; margin-bottom: 24px; }
+        h3 { font-size: 28px; font-weight: 600; margin-bottom: 16px; }
+        p { font-size: 20px; line-height: 1.6; color: var(--muted); }
+        .big-text { font-size: 24px; line-height: 1.6; }
+
+        .gradient-text {
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 22px;
+            color: var(--muted);
+            margin-top: 16px;
+            font-weight: 400;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 6px 16px;
+            background: rgba(74, 158, 255, 0.15);
+            color: var(--blue);
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            margin: 4px;
+        }
+
+        .tag.purple { background: rgba(168,85,247,0.15); color: var(--purple); }
+        .tag.green { background: rgba(52,211,153,0.15); color: var(--green); }
+        .tag.yellow { background: rgba(251,191,36,0.15); color: var(--yellow); }
+        .tag.red { background: rgba(248,113,113,0.15); color: var(--red); }
+
+        /* Layout helpers */
+        .center { text-align: center; }
+        .left-align { text-align: left; width: 100%; max-width: 1000px; }
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; width: 100%; max-width: 1100px; }
+        .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; width: 100%; max-width: 1100px; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 28px;
+        }
+
+        .card h3 { font-size: 20px; margin-bottom: 12px; }
+        .card p { font-size: 16px; }
+
+        .icon-card {
+            text-align: center;
+            padding: 32px 24px;
+        }
+
+        .icon-card .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* Stat cards */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 28px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+
+        .stat-card .number {
+            font-size: 48px;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            color: var(--muted);
+            margin-top: 8px;
+        }
+
+        /* Architecture */
+        .arch-diagram {
+            background: var(--card);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 40px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            white-space: pre;
+            line-height: 1.6;
+            color: var(--muted);
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        .arch-diagram .highlight { color: var(--blue); font-weight: 500; }
+        .arch-diagram .green { color: var(--green); }
+        .arch-diagram .purple { color: var(--purple); }
+        .arch-diagram .yellow { color: var(--yellow); }
+
+        /* Feature list */
+        .feature-list {
+            list-style: none;
+            font-size: 20px;
+            line-height: 2.2;
+        }
+
+        .feature-list li::before {
+            content: ">";
+            color: var(--blue);
+            font-weight: 700;
+            margin-right: 12px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* Timeline */
+        .timeline {
+            display: flex;
+            gap: 0;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .timeline-item {
+            flex: 1;
+            padding: 20px;
+            border-left: 3px solid var(--blue);
+            position: relative;
+        }
+
+        .timeline-item:nth-child(2) { border-color: var(--purple); }
+        .timeline-item:nth-child(3) { border-color: var(--green); }
+        .timeline-item:nth-child(4) { border-color: var(--yellow); }
+
+        .timeline-item .time { font-size: 13px; color: var(--blue); font-weight: 600; margin-bottom: 8px; }
+        .timeline-item:nth-child(2) .time { color: var(--purple); }
+        .timeline-item:nth-child(3) .time { color: var(--green); }
+        .timeline-item:nth-child(4) .time { color: var(--yellow); }
+
+        .timeline-item h4 { font-size: 16px; margin-bottom: 6px; }
+        .timeline-item p { font-size: 13px; }
+
+        /* Nudge preview */
+        .nudge-preview {
+            background: var(--bg2);
+            border-left: 3px solid var(--yellow);
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 8px 0;
+            font-size: 15px;
+        }
+
+        .nudge-preview.high { border-color: var(--red); }
+        .nudge-preview.green { border-color: var(--green); }
+
+        .nudge-preview .nudge-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted);
+            margin-bottom: 4px;
+        }
+
+        /* Glow decoration */
+        .glow {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.15;
+            pointer-events: none;
+        }
+
+        .glow-blue { background: var(--blue); top: -100px; right: -100px; }
+        .glow-purple { background: var(--purple); bottom: -100px; left: -100px; }
+
+        /* Bonus badges */
+        .bonus-list {
+            list-style: none;
+            font-size: 18px;
+            line-height: 2.4;
+        }
+        .bonus-list li { display: flex; align-items: center; gap: 12px; }
+        .check { color: var(--green); font-weight: 700; font-size: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="deck">
+
+    <!-- SLIDE 1: Title -->
+    <div class="slide active" id="slide-1">
+        <div class="glow glow-blue"></div>
+        <div class="glow glow-purple"></div>
+        <div class="center">
+            <div style="margin-bottom: 24px;">
+                <span class="tag">Gemini Live Agent Challenge</span>
+                <span class="tag purple">Live Agents Category</span>
+            </div>
+            <h1>Meeting Coach</h1>
+            <h1 class="gradient-text">Your AI Meeting Co-pilot</h1>
+            <p class="subtitle" style="max-width: 600px; margin: 24px auto 0;">
+                A real-time agent that listens to your meetings and makes you better —
+                one nudge at a time.
+            </p>
+            <div style="margin-top: 40px;">
+                <span class="tag green">Gemini Live API</span>
+                <span class="tag">Google ADK</span>
+                <span class="tag purple">Cloud Run</span>
+                <span class="tag yellow">Firestore</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 2: The Problem -->
+    <div class="slide" id="slide-2">
+        <div class="center">
+            <h2>The Problem</h2>
+            <p class="big-text" style="max-width: 800px; margin: 0 auto;">
+                Meetings are the #1 time sink in the workplace.
+            </p>
+            <div class="stat-grid" style="margin-top: 48px;">
+                <div class="stat-card">
+                    <div class="number">35%</div>
+                    <div class="label">of meeting time<br>is unproductive</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">73%</div>
+                    <div class="label">of people do other<br>work during meetings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">63%</div>
+                    <div class="label">of meetings have<br>no agenda</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number">50%</div>
+                    <div class="label">of action items<br>are forgotten</div>
+                </div>
+            </div>
+            <p style="margin-top: 32px; font-size: 22px; color: var(--text);">
+                What if you had a <span class="gradient-text" style="font-weight: 700;">silent coach</span> that made every meeting count?
+            </p>
+        </div>
+    </div>
+
+    <!-- SLIDE 3: The Solution -->
+    <div class="slide" id="slide-3">
+        <div class="center">
+            <h2>The Solution: <span class="gradient-text">Meeting Coach</span></h2>
+            <p style="max-width: 700px; margin: 0 auto 40px; font-size: 20px;">
+                An AI agent that joins your meetings as a silent observer and delivers
+                real-time coaching through whispers and visual nudges.
+            </p>
+            <div class="three-col">
+                <div class="card icon-card">
+                    <div class="icon">&#x1F3A7;</div>
+                    <h3>Hears Everything</h3>
+                    <p>Listens to all participants via your microphone in real-time</p>
+                </div>
+                <div class="card icon-card">
+                    <div class="icon">&#x1F441;</div>
+                    <h3>Sees Your Screen</h3>
+                    <p>Optionally watches shared slides and documents for context</p>
+                </div>
+                <div class="card icon-card">
+                    <div class="icon">&#x1F4AC;</div>
+                    <h3>Coaches You</h3>
+                    <p>Whispers nudges only to you — no one else in the meeting knows</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 4: Key Features -->
+    <div class="slide" id="slide-4">
+        <div class="left-align">
+            <h2>What It Does</h2>
+            <div class="two-col" style="margin-top: 24px;">
+                <div>
+                    <ul class="feature-list">
+                        <li>Detects and captures action items automatically</li>
+                        <li>Monitors your participation level</li>
+                        <li>Tracks time against scheduled duration</li>
+                        <li>Follows agenda and detects topic drift</li>
+                        <li>Flags important decisions for confirmation</li>
+                        <li>Generates post-meeting summary</li>
+                    </ul>
+                </div>
+                <div>
+                    <div class="nudge-preview green">
+                        <div class="nudge-label">action item captured</div>
+                        Captured: John will send the Q4 report by Friday
+                    </div>
+                    <div class="nudge-preview">
+                        <div class="nudge-label">participation</div>
+                        You haven't spoken in 5 minutes. Look for an opening to contribute.
+                    </div>
+                    <div class="nudge-preview high">
+                        <div class="nudge-label">time warning</div>
+                        Heads up — only 5 minutes remaining in the meeting.
+                    </div>
+                    <div class="nudge-preview">
+                        <div class="nudge-label">topic drift</div>
+                        Discussion seems off-agenda. Remaining: Budget Review, Next Steps.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 5: How It Works (Demo Flow) -->
+    <div class="slide" id="slide-5">
+        <div class="center">
+            <h2>How It Works</h2>
+            <div class="timeline" style="margin-top: 40px;">
+                <div class="timeline-item">
+                    <div class="time">STEP 1</div>
+                    <h4>Configure</h4>
+                    <p>Set your name, meeting duration, and agenda items</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="time">STEP 2</div>
+                    <h4>Start Meeting</h4>
+                    <p>Click start, grant mic access. Optionally share your screen.</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="time">STEP 3</div>
+                    <h4>Get Coached</h4>
+                    <p>Agent listens in real-time and sends nudges to your sidebar</p>
+                </div>
+                <div class="timeline-item">
+                    <div class="time">STEP 4</div>
+                    <h4>Review Summary</h4>
+                    <p>End the meeting and get action items, topics, and participation stats</p>
+                </div>
+            </div>
+            <p style="margin-top: 40px; font-size: 18px;">
+                The agent uses <span style="color: var(--blue); font-weight: 600;">audio whispers</span> +
+                <span style="color: var(--purple); font-weight: 600;">visual nudge cards</span> for
+                dual-channel, non-intrusive coaching.
+            </p>
+        </div>
+    </div>
+
+    <!-- SLIDE 6: Architecture -->
+    <div class="slide" id="slide-6">
+        <div class="center">
+            <h2>Architecture</h2>
+            <div class="arch-diagram"><span class="highlight">Browser (Frontend)</span>                           <span class="green">Cloud Run (Backend)</span>
++-------------------------+                  +------------------------------+
+| <span class="highlight">Mic</span> -> PCM 16kHz        |---<span class="yellow">WebSocket</span>--->| <span class="green">FastAPI WebSocket Server</span>    |
+| <span class="highlight">Screen</span> -> JPEG frames   |                  |   |                          |
+| <span class="purple">Nudge Display</span> (toasts) |<--<span class="yellow">WebSocket</span>----  |   v                          |
+| <span class="purple">Audio Whisper</span> Playback |                  | <span class="green">ADK Agent</span> (run_live)        |
+| Meeting Timer           |                  |   |                          |
+| Summary View            |                  |   v                          |
++-------------------------+                  | <span class="highlight">Gemini Live API</span>              |
+                                             | (gemini-live-2.5-flash-      |
+                                             |  native-audio)               |
+                                             |                              |
+                                             | <span class="purple">Firestore</span> (state + summary) |
+                                             +------------------------------+</div>
+        </div>
+    </div>
+
+    <!-- SLIDE 7: Tech Stack -->
+    <div class="slide" id="slide-7">
+        <div class="center">
+            <h2>Technology Stack</h2>
+            <div class="three-col" style="margin-top: 32px;">
+                <div class="card">
+                    <h3 style="color: var(--blue);">Gemini Live API</h3>
+                    <p>Real-time bidirectional audio + vision via WebSocket. Model: gemini-live-2.5-flash-native-audio</p>
+                </div>
+                <div class="card">
+                    <h3 style="color: var(--purple);">Google ADK</h3>
+                    <p>Agent Development Kit with run_live() streaming, tool calling, and session state management</p>
+                </div>
+                <div class="card">
+                    <h3 style="color: var(--green);">Cloud Run</h3>
+                    <p>Serverless container hosting with WebSocket support, session affinity, and 1hr timeout</p>
+                </div>
+                <div class="card">
+                    <h3 style="color: var(--yellow);">Firestore</h3>
+                    <p>NoSQL database for meeting state persistence, action items, and summary history</p>
+                </div>
+                <div class="card">
+                    <h3 style="color: var(--text);">FastAPI</h3>
+                    <p>WebSocket server bridging browser client to ADK agent. Handles audio/video routing.</p>
+                </div>
+                <div class="card">
+                    <h3 style="color: var(--text);">Web Audio API</h3>
+                    <p>Browser-native mic capture (16kHz PCM) and agent whisper playback (24kHz PCM)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 8: Agent Design -->
+    <div class="slide" id="slide-8">
+        <div class="left-align">
+            <h2>Agent Design</h2>
+            <div class="two-col" style="margin-top: 24px;">
+                <div>
+                    <h3 style="color: var(--blue); margin-bottom: 20px;">Single Agent, 8 Tools</h3>
+                    <p style="margin-bottom: 20px;">
+                        One LlmAgent with specialized tools for each coaching behavior.
+                        The system instruction defines persona, coaching rules, and
+                        nudge rate limiting.
+                    </p>
+                    <div style="margin-top: 16px;">
+                        <span class="tag">emit_nudge</span>
+                        <span class="tag green">track_action_item</span>
+                        <span class="tag purple">update_current_topic</span>
+                        <span class="tag yellow">log_speaker_turn</span>
+                        <span class="tag red">emit_time_warning</span>
+                        <span class="tag">emit_participation_reminder</span>
+                        <span class="tag green">check_agenda_status</span>
+                        <span class="tag purple">generate_meeting_summary</span>
+                    </div>
+                </div>
+                <div class="card" style="font-family: 'JetBrains Mono', monospace; font-size: 13px; line-height: 1.8; color: var(--muted);">
+<span style="color: var(--purple);">root_agent</span> = Agent(
+  model=<span style="color: var(--green);">"gemini-live-2.5-flash
+         -native-audio"</span>,
+  name=<span style="color: var(--green);">"meeting_coach"</span>,
+  instruction=COACH_PROMPT,
+  tools=[
+    emit_nudge,
+    track_action_item,
+    update_current_topic,
+    log_speaker_turn,
+    emit_time_warning,
+    emit_participation_reminder,
+    check_agenda_status,
+    generate_meeting_summary,
+  ],
+  response_modalities=[<span style="color: var(--green);">"AUDIO"</span>],
+)
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 9: What Makes It Special -->
+    <div class="slide" id="slide-9">
+        <div class="center">
+            <h2>What Makes It <span class="gradient-text">Special</span></h2>
+            <div class="three-col" style="margin-top: 40px;">
+                <div class="card icon-card">
+                    <div class="icon">&#x1F504;</div>
+                    <h3>Truly Real-Time</h3>
+                    <p>No turn-taking. The agent continuously listens and proactively coaches — you never "ask" it anything.</p>
+                </div>
+                <div class="card icon-card">
+                    <div class="icon">&#x1F50A;</div>
+                    <h3>Dual-Channel Output</h3>
+                    <p>Visual nudge cards + audio whispers. Coaching adapts to the moment without disrupting the meeting.</p>
+                </div>
+                <div class="card icon-card">
+                    <div class="icon">&#x1F9E0;</div>
+                    <h3>Context-Aware</h3>
+                    <p>Tracks topics, speakers, time, and agenda. Nudges are relevant, not generic — it knows what's happening.</p>
+                </div>
+            </div>
+            <p style="margin-top: 40px; font-size: 22px; color: var(--text);">
+                This is not a chatbot. It's a <span class="gradient-text" style="font-weight: 700;">silent, intelligent observer</span> that breaks the text-box paradigm.
+            </p>
+        </div>
+    </div>
+
+    <!-- SLIDE 10: Bonus Points -->
+    <div class="slide" id="slide-10">
+        <div class="left-align">
+            <h2>Hackathon Checklist</h2>
+            <div class="two-col" style="margin-top: 24px;">
+                <div>
+                    <h3 style="color: var(--green); margin-bottom: 20px;">Requirements Met</h3>
+                    <ul class="bonus-list">
+                        <li><span class="check">&#x2713;</span> Gemini model (Live API)</li>
+                        <li><span class="check">&#x2713;</span> Google ADK agent framework</li>
+                        <li><span class="check">&#x2713;</span> Google Cloud services (Cloud Run + Firestore)</li>
+                        <li><span class="check">&#x2713;</span> Multimodal: audio + vision input</li>
+                        <li><span class="check">&#x2713;</span> Real-time, interruptible interaction</li>
+                        <li><span class="check">&#x2713;</span> Public code repository</li>
+                        <li><span class="check">&#x2713;</span> Architecture diagram</li>
+                    </ul>
+                </div>
+                <div>
+                    <h3 style="color: var(--yellow); margin-bottom: 20px;">Bonus Points</h3>
+                    <ul class="bonus-list">
+                        <li><span class="check">&#x2713;</span> Automated Cloud deployment (deploy.sh)</li>
+                        <li><span class="check">&#x2713;</span> Infrastructure-as-code in public repo</li>
+                        <li><span class="check">&#x2713;</span> README with spin-up instructions</li>
+                        <li><span class="check">&#x2713;</span> #GeminiLiveAgentChallenge content</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 11: Future Vision -->
+    <div class="slide" id="slide-11">
+        <div class="center">
+            <h2>What's Next</h2>
+            <div class="three-col" style="margin-top: 40px;">
+                <div class="card icon-card">
+                    <div class="icon">&#x1F4C8;</div>
+                    <h3>Meeting Analytics</h3>
+                    <p>Track patterns across meetings. "You tend to speak 40% less on Mondays." Historical trends and coaching insights.</p>
+                </div>
+                <div class="card icon-card">
+                    <div class="icon">&#x1F91D;</div>
+                    <h3>Team Coaching</h3>
+                    <p>Multi-participant awareness. Coach entire teams on meeting dynamics, not just individuals.</p>
+                </div>
+                <div class="card icon-card">
+                    <div class="icon">&#x1F50C;</div>
+                    <h3>Calendar Integration</h3>
+                    <p>Auto-join from Google Calendar. Pre-load agenda and attendees. Send summaries to attendees after.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SLIDE 12: Closing -->
+    <div class="slide" id="slide-12">
+        <div class="glow glow-blue"></div>
+        <div class="glow glow-purple"></div>
+        <div class="center">
+            <h1>Meeting Coach</h1>
+            <h1 class="gradient-text" style="margin-bottom: 32px;">See. Hear. Coach.</h1>
+            <p style="font-size: 22px; color: var(--text); max-width: 600px; margin: 0 auto;">
+                Making every meeting count with real-time AI coaching
+                powered by Gemini Live API.
+            </p>
+            <div style="margin-top: 48px; display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;">
+                <div class="card" style="padding: 16px 28px; text-align: center;">
+                    <div style="font-size: 13px; color: var(--muted); margin-bottom: 4px;">Repository</div>
+                    <div style="font-size: 16px; color: var(--blue);">github.com/cottonandcolor/meeting-coach</div>
+                </div>
+            </div>
+            <div style="margin-top: 32px;">
+                <span class="tag green">Gemini Live API</span>
+                <span class="tag">Google ADK</span>
+                <span class="tag purple">Cloud Run</span>
+                <span class="tag yellow">Firestore</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav">
+    <button onclick="prevSlide()">&#x2190; Prev</button>
+    <button onclick="nextSlide()">Next &#x2192;</button>
+</div>
+<div class="slide-counter">
+    <span id="current-slide">1</span> / <span id="total-slides">12</span>
+</div>
+
+<script>
+    let current = 1;
+    const total = 12;
+
+    function showSlide(n) {
+        document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+        document.getElementById('slide-' + n).classList.add('active');
+        document.getElementById('current-slide').textContent = n;
+        current = n;
+    }
+
+    function nextSlide() {
+        if (current < total) showSlide(current + 1);
+    }
+
+    function prevSlide() {
+        if (current > 1) showSlide(current - 1);
+    }
+
+    // Keyboard navigation
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+        if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+    });
+</script>
+
+</body>
+</html>
