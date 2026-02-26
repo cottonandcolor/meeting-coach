@@ -60,12 +60,17 @@
                 <!-- Info bar -->
                 <div class="meeting-info-bar">
                     <span class="meeting-name" id="meeting-name-display">Meeting</span>
+                    <span class="connection-status" id="connection-status">
+                        <span class="connection-dot connected" id="connection-dot"></span>
+                        <span id="connection-text">Connected</span>
+                    </span>
                     <span id="meeting-timer">00:00 / 30:00</span>
                 </div>
 
                 <!-- Controls -->
                 <div class="meeting-controls">
                     <button id="toggle-mic-btn" class="btn btn-secondary">Unmute Mic</button>
+                    <span class="mic-level-dot" id="mic-level-dot"></span>
                     <button id="toggle-screen-btn" class="btn btn-secondary">Share Screen</button>
                     <div style="flex:1"></div>
                     <button id="end-meeting-btn" class="btn btn-danger">End Meeting</button>

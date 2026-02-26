@@ -23,6 +23,8 @@ from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
 from meeting_coach.agent import root_agent
+from meeting_coach.state.firestore_sync import save_meeting_state, save_meeting_summary
+from server.models import MeetingConfig
 from server.session_manager import SessionManager
 
 logging.basicConfig(level=logging.INFO)
@@ -152,27 +154,23 @@ async def meeting_websocket(websocket: WebSocket, meeting_id: str):
                         await live_queue.send(live_request)
 
                     elif msg_type == "config":
-                        # Meeting configuration update
-                        config = msg.get("config", {})
+                        # Meeting configuration update (validated via Pydantic)
+                        config = MeetingConfig(**msg.get("config", {}))
+                        config_dict = config.model_dump()
                         current = await session_service.get_session(
                             app_name=APP_NAME,
                             user_id=meeting_session.user_id,
                             session_id=meeting_session.session_id,
                         )
                         if current:
-                            for key, value in config.items():
+                            for key, value in config_dict.items():
                                 current.state[key] = value
-                        meeting_session.user_name = config.get(
-                            "user_name", meeting_session.user_name
+                        meeting_session.user_name = config.user_name
+                        meeting_session.duration_minutes = (
+                            config.meeting_duration_minutes
                         )
-                        meeting_session.duration_minutes = config.get(
-                            "meeting_duration_minutes",
-                            meeting_session.duration_minutes,
-                        )
-                        meeting_session.agenda_items = config.get(
-                            "agenda_items", meeting_session.agenda_items
-                        )
-                        logger.info(f"Meeting config updated: {config}")
+                        meeting_session.agenda_items = config.agenda_items
+                        logger.info(f"Meeting config updated: {config_dict}")
 
                     elif msg_type == "end_meeting":
                         # Tell agent to generate summary
@@ -282,6 +280,11 @@ async def meeting_websocket(websocket: WebSocket, meeting_id: str):
                                 "type": "summary",
                                 "summary": summary,
                             })
+                            await save_meeting_summary(
+                                meeting_id=meeting_id,
+                                summary=summary,
+                                user_id=meeting_session.user_id,
+                            )
 
                 except Exception as e:
                     logger.warning(f"Error checking session state: {e}")
@@ -298,6 +301,17 @@ async def meeting_websocket(websocket: WebSocket, meeting_id: str):
                     pass
         finally:
             is_running = False
+            # Persist final meeting state to Firestore
+            try:
+                final_session = await session_service.get_session(
+                    app_name=APP_NAME,
+                    user_id=meeting_session.user_id,
+                    session_id=meeting_session.session_id,
+                )
+                if final_session:
+                    await save_meeting_state(meeting_id, dict(final_session.state))
+            except Exception as e:
+                logger.warning(f"Failed to persist final state: {e}")
             session_manager.end_session(meeting_id)
             logger.info(f"Meeting session ended: {meeting_id}")
 

@@ -640,6 +640,61 @@ body {
     pointer-events: auto;
 }
 
+/* ===== Connection Status Indicator ===== */
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.connection-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.connection-dot.connected {
+    background: var(--accent-green);
+    box-shadow: 0 0 6px var(--accent-green);
+}
+
+.connection-dot.disconnected {
+    background: var(--accent-red);
+    box-shadow: 0 0 6px var(--accent-red);
+}
+
+.connection-dot.reconnecting {
+    background: var(--accent-yellow);
+    box-shadow: 0 0 6px var(--accent-yellow);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+/* ===== Mic Level Indicator ===== */
+.mic-level-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent-green);
+    display: none;
+    opacity: 0.3;
+    transition: opacity 0.05s ease, transform 0.05s ease;
+}
+
+.mic-level-dot.active {
+    display: inline-block;
+}
+
+/* ===== Summary Export Bar ===== */
+.summary-export-bar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 24px;
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 768px) {
     .meeting-layout {

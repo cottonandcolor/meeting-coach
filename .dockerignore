@@ -1,0 +1,17 @@
+.git
+.gitignore
+.env
+.env.example
+.dockerignore
+__pycache__
+*.pyc
+*.pyo
+tests/
+presentation/
+*.md
+LICENSE
+.vscode/
+.idea/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/

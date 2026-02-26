@@ -1,37 +1,39 @@
 # Meeting Coach - AI Meeting Co-pilot
 
-> Real-time meeting coaching agent powered by Gemini Live API. Your AI co-pilot listens to your meetings and provides actionable coaching nudges.
+> Real-time meeting coaching agent powered by Gemini Live API. Your AI co-pilot listens to your meetings and provides actionable coaching nudges — then generates a comprehensive post-meeting summary.
 
-**Built for the [Gemini Live Agent Challenge](https://devpost.com/) hackathon.**
+**Built for the [Gemini Live Agent Challenge](https://googleai.devpost.com/) hackathon.**
 
 ## What It Does
 
-Meeting Coach is a Live Agent that listens to your meetings in real-time and helps you be more effective:
+Meeting Coach is a Live Agent that joins your meetings in real-time and helps you be a more effective communicator:
 
-- **Participation Monitoring** - Nudges you when you haven't spoken in a while
-- **Action Item Detection** - Automatically captures commitments and deadlines
-- **Time Management** - Warns when meetings run long or topics drag on
-- **Topic Tracking** - Tracks agenda coverage and detects off-topic drift
-- **Key Decision Alerts** - Highlights important decisions that need confirmation
-- **Post-Meeting Summary** - Generates a comprehensive summary with action items and participation stats
+- **Participation Monitoring** — Nudges you when you haven't spoken in a while
+- **Action Item Detection** — Automatically captures commitments and deadlines
+- **Time Management** — Warns when meetings run long or topics drag on
+- **Topic Tracking** — Tracks agenda coverage and detects off-topic drift
+- **Key Decision Alerts** — Highlights important decisions that need confirmation
+- **Post-Meeting Summary** — Generates a Markdown-exportable summary with action items and participation stats
 
 ## Architecture
 
-```
-Browser (Frontend)                         Cloud Run (Backend)
-+-----------------------+                  +---------------------------+
-| Mic -> PCM 16kHz      |---WebSocket--->  | FastAPI WebSocket Server  |
-| Screen -> JPEG frames |                  |   |                       |
-| Nudge Display (toasts)|<--WebSocket----  |   v                       |
-| Audio Whisper Playback|                  | ADK Agent (run_live)      |
-| Meeting Timer         |                  |   |                       |
-| Summary View          |                  |   v                       |
-+-----------------------+                  | Gemini Live API           |
-                                           | (gemini-live-2.5-flash-   |
-                                           |  native-audio)            |
-                                           |                           |
-                                           | Firestore (state/summary) |
-                                           +---------------------------+
+```mermaid
+graph LR
+    subgraph Browser
+        Mic[Microphone<br>PCM 16kHz] --> WS[WebSocket]
+        Screen[Screen Share<br>JPEG 1fps] --> WS
+        WS --> Nudges[Nudge Display]
+        WS --> Audio[Audio Whisper<br>Playback]
+        WS --> Summary[Summary View]
+    end
+
+    subgraph Cloud Run
+        WS <-->|Binary + JSON| FastAPI[FastAPI<br>WebSocket Server]
+        FastAPI --> ADK[ADK Agent<br>run_live]
+        ADK --> Gemini[Gemini Live API<br>gemini-live-2.5-flash-native-audio]
+        ADK --> Tools[Agent Tools<br>nudge / track / summary]
+        FastAPI --> Firestore[(Firestore<br>State & History)]
+    end
 ```
 
 ## Tech Stack
@@ -52,12 +54,25 @@ Browser (Frontend)                         Cloud Run (Backend)
 - Google Cloud Project (for Firestore and deployment)
 - `gcloud` CLI installed
 
+### Prerequisites Check
+
+```bash
+# Verify Python version
+python3 --version  # Should be 3.11+
+
+# Verify gcloud CLI
+gcloud --version
+
+# Verify you're authenticated
+gcloud auth list
+```
+
 ## Local Development Setup
 
 1. **Clone and install dependencies:**
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/preetidave/meeting-coach.git
 cd meeting-coach
 pip install -r requirements.txt
 ```
@@ -66,7 +81,8 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env and add your GOOGLE_API_KEY and GOOGLE_CLOUD_PROJECT
+# Edit .env and add your GOOGLE_API_KEY
+# GOOGLE_CLOUD_PROJECT is optional for local dev (Firestore will gracefully degrade)
 ```
 
 3. **Run locally:**
@@ -94,6 +110,7 @@ export GOOGLE_CLOUD_PROJECT=your-project-id
 ```
 
 The script will:
+- Check that required CLI tools and APIs are available
 - Create a secret for the API key (if needed)
 - Build and deploy the container to Cloud Run
 - Configure timeout, session affinity, and resources
@@ -102,7 +119,7 @@ The script will:
 ## Running Tests
 
 ```bash
-pip install pytest
+pip install pytest httpx
 pytest tests/ -v
 ```
 
@@ -117,7 +134,7 @@ meeting-coach/
 │   └── state/              # State management and Firestore sync
 ├── server/                 # FastAPI backend
 │   ├── main.py             # WebSocket endpoint and ADK bridge
-│   ├── models.py           # Message protocol models
+│   ├── models.py           # Pydantic message protocol models
 │   └── session_manager.py  # Session lifecycle
 ├── frontend/               # Browser client
 │   ├── index.html          # SPA with three views
@@ -131,13 +148,29 @@ meeting-coach/
 
 ## How to Use
 
-1. **Setup**: Enter your name, set meeting duration, and optionally add agenda items
-2. **Start Meeting**: Click "Start Meeting" to begin. Grant microphone access when prompted.
-3. **During Meeting**: The coach listens silently and sends nudges to the right sidebar. Optionally share your screen for slide-aware coaching.
-4. **End Meeting**: Click "End Meeting" to get a comprehensive summary with action items, participation stats, and coaching insights.
+1. **Setup** — Enter your name, set meeting duration, and optionally add agenda items
+2. **Start Meeting** — Click "Start Meeting" to begin. Grant microphone access when prompted.
+3. **During Meeting** — The coach listens silently and sends nudges to the right sidebar. Optionally share your screen for slide-aware coaching.
+4. **End Meeting** — Click "End Meeting" to get a comprehensive summary with action items, participation stats, and coaching insights. Export as Markdown or copy to clipboard.
+
+## Troubleshooting
+
+| Issue | Solution |
+|---|---|
+| **Microphone not working** | Ensure the browser has microphone permission. Chrome requires HTTPS or `localhost`. |
+| **WebSocket connection fails** | Check that the server is running on the correct port. Verify no firewall is blocking WebSocket connections. |
+| **Firestore errors on local dev** | This is expected if `GOOGLE_CLOUD_PROJECT` is not set. State will not persist but the app works normally. |
+| **Docker build fails** | Ensure Docker Desktop is running. Try `docker build --no-cache -t meeting-coach .` |
+| **`deploy.sh` fails** | Run `gcloud auth login` and verify `GOOGLE_CLOUD_PROJECT` is set. Check that Cloud Run API is enabled. |
+| **No audio from coach** | The agent responds via audio whispers. Ensure your browser volume is up and autoplay is not blocked. |
 
 ## Google Cloud Services Used
 
-- **Cloud Run** - Serverless container hosting for the backend
-- **Firestore** - NoSQL database for meeting state and summary persistence
-- **Secret Manager** - Secure API key storage
+- **Cloud Run** — Serverless container hosting for the backend
+- **Firestore** — NoSQL database for meeting state and summary persistence
+- **Secret Manager** — Secure API key storage
+- **Artifact Registry** — Container image storage
+
+## License
+
+This project is licensed under the Apache License 2.0 — see the [LICENSE](LICENSE) file for details.

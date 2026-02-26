@@ -9,6 +9,7 @@ class AudioCapture {
         this.stream = null;
         this.ws = null;
         this.isCapturing = false;
+        this.currentLevel = 0;
     }
 
     /**
@@ -41,6 +42,12 @@ class AudioCapture {
                     return;
                 }
                 const float32 = event.inputBuffer.getChannelData(0);
+                // Compute RMS level for mic indicator (0..1)
+                let sum = 0;
+                for (let i = 0; i < float32.length; i++) {
+                    sum += float32[i] * float32[i];
+                }
+                this.currentLevel = Math.min(1, Math.sqrt(sum / float32.length) * 5);
                 const int16 = this._float32ToInt16(float32);
                 this.ws.send(int16.buffer);
             };
@@ -61,6 +68,7 @@ class AudioCapture {
      */
     stop() {
         this.isCapturing = false;
+        this.currentLevel = 0;
 
         if (this.processor) {
             this.processor.disconnect();

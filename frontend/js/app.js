@@ -18,6 +18,9 @@ class MeetingCoachApp {
         this.isScreenSharing = false;
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
+        this._meetingConfig = null;
+        this._awaitingSummary = false;
+        this._summaryTimeout = null;
 
         this._bindEvents();
     }
@@ -87,21 +90,23 @@ class MeetingCoachApp {
         try {
             await this._connectWebSocket(wsUrl);
 
-            // Send configuration
+            // Store and send configuration
+            this._meetingConfig = {
+                user_name: userName,
+                meeting_duration_minutes: duration,
+                agenda_items: agendaItems,
+            };
             this.ws.send(
                 JSON.stringify({
                     type: 'config',
-                    config: {
-                        user_name: userName,
-                        meeting_duration_minutes: duration,
-                        agenda_items: agendaItems,
-                    },
+                    config: this._meetingConfig,
                 })
             );
 
             // Start audio capture
             await this.audioCapture.start(this.ws);
             this.isMicActive = true;
+            this._startMicLevelMonitor();
 
             // Initialize audio player (needs user gesture context)
             this.audioPlayer.init();
@@ -137,6 +142,7 @@ class MeetingCoachApp {
                 console.log('WebSocket connected');
                 this.isConnected = true;
                 this.reconnectAttempts = 0;
+                this._updateConnectionStatus('connected');
                 resolve();
             };
 
@@ -147,6 +153,7 @@ class MeetingCoachApp {
             this.ws.onclose = (event) => {
                 console.log('WebSocket closed:', event.code, event.reason);
                 this.isConnected = false;
+                this._updateConnectionStatus('disconnected');
                 if (this.meetingTimer && this.meetingTimer.isRunning) {
                     this._attemptReconnect(url);
                 }
@@ -171,10 +178,20 @@ class MeetingCoachApp {
         this.reconnectAttempts++;
         const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
         console.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})...`);
+        this._updateConnectionStatus('reconnecting');
 
         setTimeout(async () => {
             try {
                 await this._connectWebSocket(url);
+                // Resend meeting config so server restores context
+                if (this._meetingConfig && this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(
+                        JSON.stringify({
+                            type: 'config',
+                            config: this._meetingConfig,
+                        })
+                    );
+                }
                 // Restart audio capture with new WebSocket
                 if (this.isMicActive) {
                     this.audioCapture.stop();
@@ -213,6 +230,14 @@ class MeetingCoachApp {
                 case 'summary':
                     this.summaryView.render(msg.summary);
                     this._showView('summary-view');
+                    // Close WebSocket now that summary has arrived
+                    if (this._awaitingSummary) {
+                        this._awaitingSummary = false;
+                        clearTimeout(this._summaryTimeout);
+                        if (this.ws) {
+                            this.ws.close();
+                        }
+                    }
                     break;
 
                 case 'state_update':
@@ -239,9 +264,11 @@ class MeetingCoachApp {
         if (this.isMicActive) {
             this.audioCapture.stop();
             this.isMicActive = false;
+            this._stopMicLevelMonitor();
         } else {
             await this.audioCapture.start(this.ws);
             this.isMicActive = true;
+            this._startMicLevelMonitor();
         }
         this._updateMicBtn(this.isMicActive);
     }
@@ -284,18 +311,22 @@ class MeetingCoachApp {
         this.screenCapture.stop();
         this.isMicActive = false;
         this.isScreenSharing = false;
+        this._stopMicLevelMonitor();
 
         // Show loading state in summary view
         document.getElementById('summary-container').innerHTML =
             '<div class="loading">Generating summary...</div>';
         this._showView('summary-view');
 
-        // Close WebSocket after a delay to allow summary to arrive
-        setTimeout(() => {
+        // Mark that we're waiting for a summary; ws will be closed on arrival
+        this._awaitingSummary = true;
+
+        // Safety timeout: close WebSocket after 30s if summary never arrives
+        this._summaryTimeout = setTimeout(() => {
             if (this.ws) {
                 this.ws.close();
             }
-        }, 10000);
+        }, 30000);
     }
 
     /**
@@ -378,6 +409,45 @@ class MeetingCoachApp {
             if (text) items.push(text);
         });
         return items;
+    }
+
+    _updateConnectionStatus(status) {
+        const dot = document.getElementById('connection-dot');
+        const text = document.getElementById('connection-text');
+        if (!dot || !text) return;
+        dot.className = 'connection-dot ' + status;
+        const labels = { connected: 'Connected', disconnected: 'Disconnected', reconnecting: 'Reconnecting...' };
+        text.textContent = labels[status] || status;
+    }
+
+    _startMicLevelMonitor() {
+        const dot = document.getElementById('mic-level-dot');
+        if (!dot) return;
+        dot.classList.add('active');
+        const update = () => {
+            if (!this.isMicActive || !this.audioCapture.currentLevel) {
+                dot.style.opacity = '0.3';
+                dot.style.transform = 'scale(1)';
+                if (this.isMicActive) this._micLevelRaf = requestAnimationFrame(update);
+                return;
+            }
+            const level = this.audioCapture.currentLevel;
+            const opacity = 0.3 + level * 0.7;
+            const scale = 1 + level * 0.5;
+            dot.style.opacity = opacity;
+            dot.style.transform = `scale(${scale})`;
+            this._micLevelRaf = requestAnimationFrame(update);
+        };
+        this._micLevelRaf = requestAnimationFrame(update);
+    }
+
+    _stopMicLevelMonitor() {
+        const dot = document.getElementById('mic-level-dot');
+        if (dot) dot.classList.remove('active');
+        if (this._micLevelRaf) {
+            cancelAnimationFrame(this._micLevelRaf);
+            this._micLevelRaf = null;
+        }
     }
 
     _showError(message) {

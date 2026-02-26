@@ -53,10 +53,14 @@ class NudgeDisplay {
         const timeout = nudge.priority === 'high' ? 15000 : 8000;
         setTimeout(() => this._dismiss(card), timeout);
 
-        // Update counter if element exists
+        // Update counter elements
         const counter = document.getElementById('nudge-count');
         if (counter) {
             counter.textContent = this.nudgeCount;
+        }
+        const badge = document.getElementById('nudge-count-badge');
+        if (badge) {
+            badge.textContent = this.nudgeCount;
         }
     }
 
@@ -100,5 +104,9 @@ class NudgeDisplay {
     clear() {
         this.container.innerHTML = '';
         this.nudgeCount = 0;
+        const counter = document.getElementById('nudge-count');
+        if (counter) counter.textContent = '0';
+        const badge = document.getElementById('nudge-count-badge');
+        if (badge) badge.textContent = '0';
     }
 }

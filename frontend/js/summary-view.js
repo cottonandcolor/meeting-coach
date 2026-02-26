@@ -12,10 +12,15 @@ class SummaryView {
      */
     render(summary) {
         if (!this.container) return;
+        this._lastSummary = summary;
 
         const html = `
             <div class="summary-content">
                 <h2>Meeting Summary</h2>
+                <div class="summary-export-bar">
+                    <button class="btn btn-secondary btn-sm" id="copy-summary-btn">Copy to Clipboard</button>
+                    <button class="btn btn-secondary btn-sm" id="download-summary-btn">Download Markdown</button>
+                </div>
 
                 <div class="summary-section summary-overview">
                     <h3>Overview</h3>
@@ -63,6 +68,14 @@ class SummaryView {
         `;
 
         this.container.innerHTML = html;
+
+        // Bind export buttons
+        document.getElementById('copy-summary-btn')?.addEventListener('click', () => {
+            this._copyToClipboard();
+        });
+        document.getElementById('download-summary-btn')?.addEventListener('click', () => {
+            this._downloadMarkdown();
+        });
     }
 
     _renderTopics(topics) {
@@ -138,11 +151,90 @@ class SummaryView {
     }
 
     /**
+     * Generate Markdown from summary data.
+     */
+    _toMarkdown(summary) {
+        const lines = ['# Meeting Summary\n'];
+
+        lines.push(`## Overview`);
+        lines.push(`- **Duration:** ${summary.duration_actual_minutes || 0} minutes`);
+        lines.push(`- **Action Items:** ${(summary.action_items || []).length}`);
+        lines.push(`- **Topics:** ${(summary.topics || []).length}`);
+        lines.push(`- **Nudges:** ${summary.coaching_stats?.total_nudges || 0}`);
+        if (!summary.on_time) lines.push(`- *Meeting ran over the scheduled time.*`);
+        lines.push('');
+
+        const topics = summary.topics || [];
+        if (topics.length) {
+            lines.push(`## Topics Discussed`);
+            topics.forEach((t) => lines.push(`- ${t.topic} (${t.duration_minutes || 0} min)`));
+            lines.push('');
+        }
+
+        const items = summary.action_items || [];
+        if (items.length) {
+            lines.push(`## Action Items`);
+            lines.push(`| Assignee | Task | Deadline |`);
+            lines.push(`|----------|------|----------|`);
+            items.forEach((i) => lines.push(`| ${i.assignee} | ${i.description} | ${i.deadline} |`));
+            lines.push('');
+        }
+
+        const participation = summary.participation || {};
+        lines.push(`## Participation`);
+        lines.push(`- You spoke **${participation.user_turns || 0}** out of **${participation.total_speaker_turns || 0}** turns (**${participation.user_participation_pct || 0}%**)`);
+        lines.push('');
+
+        const stats = summary.coaching_stats || {};
+        const breakdown = stats.breakdown || {};
+        if (Object.keys(breakdown).length) {
+            lines.push(`## Coaching Stats`);
+            lines.push(`- Total nudges: **${stats.total_nudges || 0}**`);
+            Object.entries(breakdown).forEach(([type, count]) => {
+                lines.push(`- ${type.replace(/_/g, ' ')}: **${count}**`);
+            });
+        }
+
+        return lines.join('\n');
+    }
+
+    /**
+     * Copy summary as Markdown to clipboard.
+     */
+    _copyToClipboard() {
+        if (!this._lastSummary) return;
+        const md = this._toMarkdown(this._lastSummary);
+        navigator.clipboard.writeText(md).then(() => {
+            const btn = document.getElementById('copy-summary-btn');
+            if (btn) {
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy to Clipboard'; }, 2000);
+            }
+        });
+    }
+
+    /**
+     * Download summary as a Markdown file.
+     */
+    _downloadMarkdown() {
+        if (!this._lastSummary) return;
+        const md = this._toMarkdown(this._lastSummary);
+        const blob = new Blob([md], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `meeting-summary-${new Date().toISOString().slice(0, 10)}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    /**
      * Clear the summary view.
      */
     clear() {
         if (this.container) {
             this.container.innerHTML = '';
         }
+        this._lastSummary = null;
     }
 }
